@@ -1,0 +1,2 @@
+[console_scripts]
+crewctl = cli.main:cli

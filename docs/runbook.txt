@@ -1,0 +1,5 @@
+Company VPN Policy Runbook:
+
+If VPN fails, check if the SSO status is active.
+Default VPN Client URL: client.company.com.
+IT Support Desk email: support@company.com.

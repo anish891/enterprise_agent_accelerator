@@ -1,0 +1,18 @@
+Metadata-Version: 2.4
+Name: enterprise-agent
+Version: 0.1.0
+Summary: No-code enterprise AI agent orchestration framework (crewctl)
+Requires-Python: >=3.10
+Requires-Dist: pyyaml>=6.0
+Requires-Dist: redis>=5.0
+Requires-Dist: chromadb>=0.4
+Requires-Dist: openai>=1.30
+Requires-Dist: anthropic>=0.12
+Requires-Dist: google-generativeai>=0.6
+Requires-Dist: requests>=2.32
+Requires-Dist: loguru>=0.7
+Requires-Dist: pydantic>=2.5
+Requires-Dist: crewai>=0.80.0
+Requires-Dist: click>=8.1
+Requires-Dist: rich>=13.0
+Requires-Dist: numpy>=1.26

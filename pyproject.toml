@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "enterprise-agent"
+version = "0.1.0"
+description = "No-code enterprise AI agent orchestration framework (crewctl)"
+requires-python = ">=3.10"
+dependencies = [
+    "pyyaml>=6.0",
+    "redis>=5.0",
+    "chromadb>=0.4",
+    "openai>=1.30",
+    "anthropic>=0.12",
+    "google-generativeai>=0.6",
+    "requests>=2.32",
+    "loguru>=0.7",
+    "pydantic>=2.5",
+    "crewai>=0.80.0",
+    "click>=8.1",
+    "rich>=13.0",
+    "numpy>=1.26",
+]
+
+[project.scripts]
+crewctl = "cli.main:cli"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["cli*", "connectors*", "memory*", "monitoring*", "runtime*", "security*", "utils*"]

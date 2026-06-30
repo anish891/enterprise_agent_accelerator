@@ -10,6 +10,7 @@ connectors/rest_auto.py
 connectors/sap.py
 connectors/servicenow.py
 connectors/sharepoint.py
+connectors/web_search.py
 enterprise_agent.egg-info/PKG-INFO
 enterprise_agent.egg-info/SOURCES.txt
 enterprise_agent.egg-info/dependency_links.txt

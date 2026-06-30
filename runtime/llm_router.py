@@ -46,6 +46,8 @@ def _build_azure_llm(model_string: str) -> LLM:
     Usage in agents.yaml:  llm: azure/gpt-4o
     """
     api_key = get_secret("AZURE_OPENAI_API_KEY")
+    if not api_key:
+        raise ValueError("AZURE_OPENAI_API_KEY is not set.")
     endpoint = (
         get_secret("AZURE_OPENAI_ENDPOINT")
         or "https://ai-native-dev-llm.cognitiveservices.azure.com"

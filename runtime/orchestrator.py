@@ -49,7 +49,7 @@ class RunResult:
     elapsed_seconds: float = 0.0
     status: str = "completed"  # completed | failed | stopped
 
-def resolve_agent_tools(tool_names: List[str], crew_id: str, config_dir: str) -> List[Any]:
+def resolve_agent_tools(tool_names: List[str], crew_id: str, config_dir: str, agent_role: Optional[str] = None) -> List[Any]:
     """
     Translates string representations of tools in agents.yaml into live CrewAI BaseTool configurations.
     """
@@ -113,6 +113,11 @@ def resolve_agent_tools(tool_names: List[str], crew_id: str, config_dir: str) ->
             if not resolved_any:
                 logger.warning(f"Could not map tool name '{tool_str}' to any active connector.")
                 
+    for tool in resolved_tools:
+        try:
+            tool.agent_role = agent_role
+        except Exception:
+            pass
     return resolved_tools
 
 class CrewOrchestrator:
@@ -159,9 +164,13 @@ class CrewOrchestrator:
             agent_role = "unknown"
             for frame_info in inspect.stack():
                 f_self = frame_info.frame.f_locals.get("self")
-                if f_self and f_self.__class__.__name__ == "Agent":
-                    agent_role = getattr(f_self, "role", "unknown")
-                    break
+                if f_self:
+                    if f_self.__class__.__name__ == "Agent":
+                        agent_role = getattr(f_self, "role", "unknown")
+                        break
+                    elif f_self.__class__.__name__ == "AgentExecutor" and hasattr(f_self, "agent"):
+                        agent_role = getattr(f_self.agent, "role", "unknown")
+                        break
 
             # 3. Estimate cost metrics
             chars = len(str(tool_input)) + len(str(tool_output_val))
@@ -259,7 +268,7 @@ class CrewOrchestrator:
             """Creates a brand-new Agent instance from stored config."""
             cfg = agent_configs[agent_key]
             llm_obj = get_llm(cfg["llm_model"])
-            resolved_tools = resolve_agent_tools(cfg["tool_strings"], self.run_id, self.config_dir)
+            resolved_tools = resolve_agent_tools(cfg["tool_strings"], self.run_id, self.config_dir, cfg["role"])
             return Agent(
                 role=cfg["role"],
                 goal=cfg["goal"],
@@ -321,6 +330,7 @@ class CrewOrchestrator:
                         mini_crew = Crew(
                             agents=[fresh_agent],
                             tasks=[task_obj],
+                            step_callback=step_callback_fn,
                             verbose=True,
                         )
                         result = mini_crew.kickoff()

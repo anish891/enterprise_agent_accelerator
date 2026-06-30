@@ -219,42 +219,24 @@ email_findings:
 @cli.command()
 def run() -> None:
     """
-    Executes the crew configurations defined in current directory and starts live dashboard.
+    Executes the crew configurations defined in current directory.
     """
     console = Console()
     console.print("[cyan]Initializing Crew Orchestrator...[/cyan]")
     
     orchestrator = CrewOrchestrator(config_dir=".")
     
-    # 1. Run Crew in a background thread
-    run_result = []
-    def run_thread_fn():
-        res = orchestrator.run_crew()
-        run_result.append(res)
-        
-    t = threading.Thread(target=run_thread_fn)
-    t.start()
+    # Run Crew synchronously in the main thread so that all agent outputs,
+    # task transitions, and tool executions are clearly visible in the terminal.
+    res = orchestrator.run_crew()
     
-    # 2. Wait slightly for initialization
-    time.sleep(0.8)
-    
-    # 3. Open terminal dashboard
-    try:
-        run_dashboard(run_id=orchestrator.run_id)
-    except KeyboardInterrupt:
-        console.print("\n[yellow]Dashboard monitoring closed. Process continues running in background.[/yellow]")
-        
-    t.join()
-    
-    if run_result:
-        res = run_result[0]
-        if res.status == "completed":
-            console.print("\n[green]Crew Execution Finished Successfully![/green]")
-            console.print(Panel(res.final_output, title="Final Crew Output Result", border_style="green"))
-            console.print(f"Total Steps: {len(res.steps)} | Total Tokens: {res.total_tokens} | Cost: ${res.total_cost_usd:.5f} | Time: {res.elapsed_seconds:.1f}s")
-        else:
-            console.print(f"\n[red]Crew Execution Ended with Status: {res.status}[/red]")
-            console.print(Panel(res.final_output, title="Failure Details", border_style="red"))
+    if res.status == "completed":
+        console.print("\n[green]Crew Execution Finished Successfully![/green]")
+        console.print(Panel(res.final_output, title="Final Crew Output Result", border_style="green"))
+        console.print(f"Total Steps: {len(res.steps)} | Total Tokens: {res.total_tokens} | Time: {res.elapsed_seconds:.1f}s")
+    else:
+        console.print(f"\n[red]Crew Execution Ended with Status: {res.status}[/red]")
+        console.print(Panel(res.final_output, title="Failure Details", border_style="red"))
 
 @cli.command()
 @click.argument("command")

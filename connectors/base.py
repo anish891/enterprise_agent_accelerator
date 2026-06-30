@@ -123,17 +123,25 @@ def _make_tool(connector: BaseConnector, method_name: str, method: Callable) -> 
         name: str = tool_name          # type: ignore[assignment]
         description: str = tool_desc  # type: ignore[assignment]
         args_schema: Type[BaseModel] = schema_cls  # type: ignore[assignment]
+        agent_role: Optional[str] = None
 
         def _run(self, **kwargs: Any) -> str:  # type: ignore[override]
             # ── resolve calling agent for RBAC ──────────────────────────────
-            agent_role = "unknown"
-            for frame in inspect.stack():
-                frame_self = frame.frame.f_locals.get("self")
-                if frame_self and frame_self.__class__.__name__ == "Agent":
-                    agent_role = getattr(frame_self, "role", None) or getattr(
-                        frame_self, "id", "unknown"
-                    )
-                    break
+            agent_role = getattr(self, "agent_role", None)
+            if not agent_role:
+                agent_role = "unknown"
+                for frame in inspect.stack():
+                    frame_self = frame.frame.f_locals.get("self")
+                    if frame_self:
+                        if frame_self.__class__.__name__ == "Agent":
+                            agent_role = getattr(frame_self, "role", None) or getattr(
+                                frame_self, "id", "unknown"
+                            )
+                            break
+                        elif frame_self.__class__.__name__ == "AgentExecutor" and hasattr(frame_self, "agent"):
+                            agent_role = getattr(frame_self.agent, "role", None)
+                            if agent_role:
+                                break
 
             normalized = agent_role.lower().replace(" ", "_")
 

@@ -24,6 +24,7 @@ from connectors.sharepoint import SharePointConnector
 from connectors.outlook import OutlookConnector
 from connectors.confluence import ConfluenceConnector
 from connectors.rest_auto import RESTAutoConnector
+from connectors.web_search import WebSearchConnector
 
 logger = get_logger("runtime.orchestrator")
 
@@ -33,7 +34,8 @@ CONNECTOR_MAP: Dict[str, Any] = {
     "sap": SapConnector,
     "sharepoint": SharePointConnector,
     "outlook": OutlookConnector,
-    "confluence": ConfluenceConnector
+    "confluence": ConfluenceConnector,
+    "web_search": WebSearchConnector,
 }
 
 @dataclass
@@ -234,27 +236,45 @@ class CrewOrchestrator:
             logger.error(err_msg)
             return RunResult(self.run_id, self.crew_name, err_msg, status="failed")
 
-        # 1. Compile CrewAI Agent instances
+        # 1. Compile agent configs — for sequential/hierarchical we build instances
+        #    upfront; for parallel we store the config and build fresh instances
+        #    per task to avoid "Executor already running" errors in CrewAI 1.15+
+        #    (an Agent instance cannot be shared across concurrent Crew.kickoff calls).
+        agent_configs: Dict[str, Dict[str, Any]] = {}
         agent_instances: Dict[str, Agent] = {}
+
         for agent_key, info in agents_data.items():
             llm_model = info.get("llm") or self.settings.default_llm
-            llm_obj = get_llm(llm_model)
-            
             tool_strings = info.get("tools") or []
-            resolved_tools = resolve_agent_tools(tool_strings, self.run_id, self.config_dir)
-            
-            agent_instances[agent_key] = Agent(
-                role=info.get("role", "Assistant"),
-                goal=info.get("goal", "Support operations"),
-                backstory=info.get("backstory", ""),
+            # Store raw config for later use in parallel mode
+            agent_configs[agent_key] = {
+                "llm_model": llm_model,
+                "tool_strings": tool_strings,
+                "role": info.get("role", "Assistant"),
+                "goal": info.get("goal", "Support operations"),
+                "backstory": info.get("backstory", ""),
+            }
+
+        def _make_agent(agent_key: str) -> Agent:
+            """Creates a brand-new Agent instance from stored config."""
+            cfg = agent_configs[agent_key]
+            llm_obj = get_llm(cfg["llm_model"])
+            resolved_tools = resolve_agent_tools(cfg["tool_strings"], self.run_id, self.config_dir)
+            return Agent(
+                role=cfg["role"],
+                goal=cfg["goal"],
+                backstory=cfg["backstory"],
                 llm=llm_obj,
                 tools=resolved_tools,
                 verbose=True,
-                allow_delegation=False
+                allow_delegation=False,
             )
 
-        # 2. Determine execution structure
+        # Pre-build instances for sequential/hierarchical (reuse is fine there)
         process_mode = self.settings.process.lower()
+        if process_mode != "parallel":
+            for agent_key in agent_configs:
+                agent_instances[agent_key] = _make_agent(agent_key)
         step_callback_fn = self._build_step_callback()
         
         final_output_str = ""
@@ -274,34 +294,36 @@ class CrewOrchestrator:
                     def run_single_task(task_key: str) -> Tuple[str, str]:
                         t_info = tasks_data[task_key]
                         agent_key = t_info.get("agent")
-                        agent_obj = agent_instances.get(agent_key)
-                        if not agent_obj:
+
+                        if agent_key not in agent_configs:
                             raise ValueError(f"Agent '{agent_key}' declared in task '{task_key}' does not exist.")
-                            
-                        # Build desc with parent outputs if referenced
+
+                        # Create a FRESH agent instance for every parallel task.
+                        # CrewAI 1.15+ raises "Executor is already running" if the
+                        # same Agent object is used in two concurrent Crew.kickoff calls.
+                        fresh_agent = _make_agent(agent_key)
+
+                        # Build description — substitute prior task outputs if referenced
                         description_str = t_info.get("description", "")
-                        # Simple placeholder replacement if inputs are present
-                        # formatting with task output data
-                        description_str = description_str.format(**task_outputs)
-                        
+                        try:
+                            description_str = description_str.format(**task_outputs)
+                        except KeyError:
+                            pass  # placeholders referencing not-yet-run tasks — leave as-is
+
                         task_obj = Task(
                             description=description_str,
                             expected_output=t_info.get("expected_output", "Success"),
-                            agent=agent_obj
+                            agent=fresh_agent,
                         )
-                        
-                        # Set current task description in logs
+
                         logger.info(f"Kicking off parallel Task: {task_key}")
-                        
-                        # Execute task as a mini-crew sequence
+
                         mini_crew = Crew(
-                            agents=[agent_obj],
+                            agents=[fresh_agent],
                             tasks=[task_obj],
-                            step_callback=step_callback_fn,
-                            verbose=True
+                            verbose=True,
                         )
                         result = mini_crew.kickoff()
-                        # Extract string result
                         res_str = getattr(result, "raw", str(result))
                         return task_key, res_str
 

@@ -1,8 +1,6 @@
 # ─────────────────────────────────────────────────────────────────────────────
-# rbac.yaml
-# Controls which agent is allowed to call which tools.
-# Supports wildcards: jira.* means all jira tools.
-# If this file does not exist, all tools are open to all agents.
+# rbac.yaml — tool permissions per agent role
+# Wildcards supported: web_search.* = all web_search tools
 # ─────────────────────────────────────────────────────────────────────────────
 
 roles:
@@ -12,3 +10,8 @@ roles:
       - servicenow.*
       - outlook.send_email
       - knowledge.search
+
+  stock_research_agent:
+    allowed_tools:
+      - web_search.*        # all three web_search tools
+      - outlook.send_email  # optional: email the report

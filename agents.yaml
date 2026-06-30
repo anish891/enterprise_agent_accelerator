@@ -26,3 +26,4 @@ stock_research_agent:
     - web_search.get_stock    # Real-time stock quote via Alpha Vantage
     - web_search.scrape_page  # Read full article content from any URL
     - outlook.send_email      # Email the report to someone (optional)
+

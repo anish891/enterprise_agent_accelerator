@@ -239,6 +239,15 @@ def run() -> None:
         console.print(Panel(res.final_output, title="Failure Details", border_style="red"))
 
 @cli.command()
+@click.option("--port", default=8000, help="Port to host the dashboard web server.")
+def ui(port: int) -> None:
+    """
+    Starts a local web-based dashboard to view agent runs, task logs, and details.
+    """
+    from monitoring.web_ui import start_ui_server
+    start_ui_server(port=port)
+
+@cli.command()
 @click.argument("command")
 def watch(command: str) -> None:
     """

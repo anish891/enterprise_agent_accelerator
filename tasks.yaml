@@ -68,3 +68,4 @@ write_research_report:
   depends_on:
     - fetch_stock_prices
     - search_latest_news
+

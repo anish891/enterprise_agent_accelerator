@@ -7,7 +7,7 @@ max_steps_default: 15
 
 # parallel: fetch_stock_prices and search_latest_news run at the same time
 # write_research_report waits for both (depends_on handles this automatically)
-process: parallel
+process: sequential
 
 default_llm: azure/gpt-4o
 

@@ -15,3 +15,13 @@ roles:
     allowed_tools:
       - web_search.*        # all three web_search tools
       - outlook.send_email  # optional: email the report
+
+  stock_research_analyst:
+    allowed_tools:
+      - web_search.*        # all three web_search tools
+      - outlook.send_email  # optional: email the report
+
+  it_support_specialist:
+    allowed_tools:
+      - jira.*
+      - outlook.*

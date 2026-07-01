@@ -1,29 +1,131 @@
 # ─────────────────────────────────────────────────────────────────────────────
 # agents.yaml
 #
-# AGENT GOAL is defined under the 'goal:' field for each agent.
-# It tells the agent what it is ultimately trying to achieve.
-# The 'backstory:' shapes its personality and reasoning style.
-# The 'tools:' list is what it can actually call during execution.
+# Define every AI agent that will be part of your crew.
+# Each top-level key is a unique agent ID referenced by tasks.yaml.
+#
+# FIELD REFERENCE
+# ───────────────
+#   role        Short label for the agent — shown in logs and the dashboard.
+#               Tip: make it descriptive, e.g. "Senior IT Support Engineer".
+#
+#   goal        What the agent is ultimately trying to achieve.
+#               This is injected into every LLM prompt as the agent's objective.
+#               Be specific — vague goals produce vague results.
+#
+#   backstory   Shapes the agent's reasoning style and personality.
+#               Think of it as a system prompt / persona for the LLM.
+#               Include domain expertise, tone, and any constraints.
+#
+#   llm         (Optional) Override the default_llm from config.yaml for this
+#               specific agent. Use format  <provider>/<model>.
+#               Omit to inherit the global default.
+#
+#   tools       List of connector methods this agent may call.
+#               Format: <connector_name>.<method_name>
+#               The agent is also constrained by rbac.yaml — both lists must
+#               include the tool for it to be callable.
+#               Run  crewctl --help  to see all available connectors.
 # ─────────────────────────────────────────────────────────────────────────────
 
-stock_research_agent:
-  role: Stock Research Analyst
-  # ↓↓↓ AGENT GOAL — what this agent is trying to achieve overall ↓↓↓
-  goal: >
-    Research and analyse publicly traded stocks by searching the web for the
-    latest news, fetching real-time price data, and reading relevant articles.
-    Deliver a clear, concise investment brief covering current price, recent
-    performance, key news, and a short analyst summary.
-  backstory: >
-    You are a senior equity research analyst with 15 years of experience at
-    top-tier investment banks. You are meticulous about sourcing real data,
-    always cite where information comes from, and present findings in a clean
-    structured format that a portfolio manager can act on immediately.
-  llm: azure/gpt-4o
-  tools:
-    - web_search.search       # Google web search via Serper API
-    - web_search.get_stock    # Real-time stock quote via Alpha Vantage
-    - web_search.scrape_page  # Read full article content from any URL
-    - outlook.send_email      # Email the report to someone (optional)
 
+# ── EXAMPLE 1: Stock Research Agent ──────────────────────────────────────────
+# An agent that fetches live stock data, searches the web for news, and writes
+# a formatted investment brief.
+#
+# stock_research_agent:
+#   role: Stock Research Analyst
+#   goal: >
+#     Research publicly traded stocks by searching the web for the latest news,
+#     fetching real-time price data, and reading relevant articles.
+#     Deliver a clear investment brief covering current price, recent performance,
+#     key news, and a short analyst summary.
+#   backstory: >
+#     You are a senior equity research analyst with 15 years of experience at
+#     top-tier investment banks. You are meticulous about sourcing real data,
+#     always cite where information comes from, and present findings in a clean
+#     structured format that a portfolio manager can act on immediately.
+#   llm: azure/gpt-4o
+#   tools:
+#     - web_search.search       # Google web search via Serper API
+#     - web_search.get_stock    # Real-time stock quote via Alpha Vantage
+#     - web_search.scrape_page  # Read full article content from a URL
+#     - outlook.send_email      # Optionally email the report
+
+
+# ── EXAMPLE 2: IT Support Agent ───────────────────────────────────────────────
+# An agent that investigates and resolves IT tickets using Jira and ServiceNow.
+#
+# it_support_agent:
+#   role: IT Support Specialist
+#   goal: >
+#     Investigate reported IT incidents by reading Jira tickets and searching
+#     the internal knowledge base. Resolve issues, update tickets, and notify
+#     affected users by email.
+#   backstory: >
+#     You are a senior IT systems engineer with deep expertise in enterprise
+#     networking, identity management, and cloud infrastructure. You approach
+#     every incident methodically: gather facts first, then act.
+#   llm: azure/gpt-4o
+#   tools:
+#     - jira.get_issue
+#     - jira.update_issue
+#     - servicenow.create_ticket
+#     - servicenow.update_ticket
+#     - outlook.send_email
+#     - knowledge.search
+
+
+# ── EXAMPLE 3: HR Onboarding Agent ────────────────────────────────────────────
+# An agent that prepares onboarding materials and sends welcome emails.
+#
+# hr_agent:
+#   role: HR Specialist
+#   goal: >
+#     Streamline onboarding for new hires by locating relevant policy documents
+#     on SharePoint and sending personalised welcome emails with schedules.
+#   backstory: >
+#     You are an experienced HR coordinator who knows every document in the
+#     company handbook. You communicate warmly and clearly, ensuring new
+#     employees feel welcomed and informed from day one.
+#   llm: anthropic/claude-3-5-sonnet-20241022
+#   tools:
+#     - sharepoint.get_file
+#     - sharepoint.list_files
+#     - outlook.send_email
+#     - knowledge.search
+
+
+# ── EXAMPLE 4: Financial Data Analyst ────────────────────────────────────────
+# An agent that queries SAP records and produces audit reports.
+#
+# analyst_agent:
+#   role: Financial Analyst
+#   goal: >
+#     Audit enterprise resource planning records in SAP, identify discrepancies,
+#     and produce a structured findings report for the finance team.
+#   backstory: >
+#     You are a certified chartered accountant with 10 years of SAP experience.
+#     You are precise, numbers-driven, and always flag anomalies with evidence.
+#   llm: openai/gpt-4o
+#   tools:
+#     - sap.get_record
+#     - sap.update_record
+#     - outlook.send_email
+#     - knowledge.search
+
+
+# ── YOUR AGENT DEFINITION ─────────────────────────────────────────────────────
+# Copy and fill in the block below. The agent ID (top-level key) must be
+# referenced exactly in tasks.yaml under the  agent:  field.
+#
+# <your_agent_id>:
+#   role: <Short descriptive label>
+#   goal: >
+#     <What is this agent trying to achieve? Be specific.>
+#   backstory: >
+#     <Persona / expertise that shapes how the agent reasons.>
+#   llm: <provider/model>          # optional — omit to use default_llm
+#   tools:
+#     - <connector.method>         # e.g. web_search.search
+#     - <connector.method>

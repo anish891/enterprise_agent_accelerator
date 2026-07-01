@@ -1,0 +1,274 @@
+================================================================================
+  DEMO — HR TICKET RESOLUTION AGENT
+  Copy the blocks below directly into each YAML file, then run: crewctl run
+================================================================================
+
+This demo sets up a single HR agent that:
+  1. Reads an incoming HR ticket from Jira (e.g. broken benefits portal link)
+  2. Searches the internal knowledge base for the correct policy document
+  3. Fetches the relevant file from SharePoint
+  4. Updates the Jira ticket with resolution notes
+  5. Emails the employee with the answer
+
+All connectors run in mock mode — no real credentials are needed to run this demo.
+The connectors return realistic fake data so the agent produces a full output.
+
+================================================================================
+  STEP 1 — SET ONE ENV VAR (minimum required to boot the LLM)
+================================================================================
+
+Pick whichever LLM provider you have a key for and export it:
+
+  # Option A — Azure OpenAI (default in config.yaml)
+  export AZURE_OPENAI_API_KEY="your-azure-key-here"
+  export AZURE_OPENAI_ENDPOINT="https://your-resource.openai.azure.com"
+  export AZURE_OPENAI_DEPLOYMENT="gpt-4o"
+  export AZURE_OPENAI_API_VERSION="2024-08-01-preview"
+
+  # Option B — OpenAI direct
+  export OPENAI_API_KEY="your-openai-key-here"
+
+  # Option C — Anthropic
+  export ANTHROPIC_API_KEY="your-anthropic-key-here"
+
+No other secrets are needed. Jira, SharePoint, Outlook, and ServiceNow all
+fall back to mock mode automatically when their tokens are absent.
+
+================================================================================
+  STEP 2 — COPY INTO config.yaml  (replace entire file contents)
+================================================================================
+
+secrets_backend: env
+max_steps_default: 15
+process: sequential
+
+default_llm: azure/gpt-4o
+
+llm_costs:
+  azure/gpt-4o:
+    input_per_1k: 0.005
+    output_per_1k: 0.015
+  openai/gpt-4o:
+    input_per_1k: 0.005
+    output_per_1k: 0.015
+  anthropic/claude-3-5-sonnet-20241022:
+    input_per_1k: 0.003
+    output_per_1k: 0.015
+
+================================================================================
+  STEP 3 — COPY INTO agents.yaml  (replace entire file contents)
+================================================================================
+
+hr_ticket_agent:
+  role: HR Support Specialist
+  goal: >
+    Resolve employee HR tickets by investigating the reported issue, locating
+    the correct policy or document in the knowledge base and SharePoint, then
+    updating the Jira ticket with a resolution and notifying the employee by
+    email. Always be empathetic, clear, and actionable in your communications.
+  backstory: >
+    You are a senior HR support specialist with 8 years of experience handling
+    employee queries on benefits, onboarding, payroll, and compliance. You know
+    exactly where every policy document lives and how to communicate resolutions
+    in plain language. You always close a ticket only after confirming the
+    employee has received a clear answer.
+  llm: azure/gpt-4o
+  tools:
+    - jira.get_issue
+    - jira.update_issue
+    - knowledge.search
+    - sharepoint.get_file
+    - outlook.send_email
+
+================================================================================
+  STEP 4 — COPY INTO tasks.yaml  (replace entire file contents)
+================================================================================
+
+investigate_hr_ticket:
+  agent: hr_ticket_agent
+  description: >
+    Fetch the Jira HR ticket HR-202 using jira.get_issue.
+    Read the full issue description carefully to understand what the employee
+    is asking about.
+    Then use knowledge.search with a query that matches the topic of the ticket
+    (e.g. "HR benefits portal access" or "employee benefits link").
+    Summarise what the ticket says and what the knowledge base returned.
+  expected_output: >
+    A clear summary of the employee's issue and the relevant policy information
+    found in the knowledge base, including the source document name.
+  depends_on: []
+
+fetch_policy_document:
+  agent: hr_ticket_agent
+  description: >
+    Based on the issue investigated in the previous task, retrieve the relevant
+    HR policy document from SharePoint using sharepoint.get_file.
+    Use site "mock-company.sharepoint.com" and filepath "HR/Policies/Benefits_Guide.pdf".
+    Extract the key information that directly answers the employee's question.
+  expected_output: >
+    The specific section of the benefits policy document that answers the
+    employee's question, quoted accurately.
+  depends_on:
+    - investigate_hr_ticket
+
+resolve_and_notify:
+  agent: hr_ticket_agent
+  description: >
+    Using the policy information gathered in the previous tasks:
+
+    1. Update the Jira ticket HR-202 using jira.update_issue with:
+       - comment: A clear resolution note explaining the fix and the correct
+         benefits portal URL or policy reference.
+       - status: "Resolved"
+
+    2. Send an email to the employee using outlook.send_email with:
+       - recipient: "jane.smith@company.com"
+       - subject: "Re: HR Ticket HR-202 — Benefits Portal Access Resolved"
+       - body: A warm, professional email that explains the resolution,
+         includes the relevant policy excerpt, and tells them who to contact
+         if they have further questions (benefits@company.com).
+  expected_output: >
+    Confirmation that the Jira ticket HR-202 has been updated to Resolved
+    and that the employee notification email was sent successfully.
+  depends_on:
+    - fetch_policy_document
+
+================================================================================
+  STEP 5 — COPY INTO rbac.yaml  (replace entire file contents)
+================================================================================
+
+roles:
+  HR Support Specialist:
+    allowed_tools:
+      - jira.get_issue
+      - jira.update_issue
+      - knowledge.search
+      - sharepoint.get_file
+      - outlook.send_email
+
+================================================================================
+  STEP 6 — COPY INTO memory.yaml  (replace entire file contents)
+================================================================================
+
+memory:
+  conversation: true
+
+  knowledge:
+    vector_store: chroma
+    chunk_size: 512
+    chunk_overlap: 64
+    embedding_model: text-embedding-3-small
+
+    sources:
+      - type: text
+        path: ./docs/runbook.txt
+
+================================================================================
+  STEP 7 — RUN
+================================================================================
+
+  crewctl run
+
+  You will see the agent stream live in your terminal:
+    - Task 1: Fetching Jira ticket HR-202, searching knowledge base
+    - Task 2: Pulling Benefits_Guide.pdf from SharePoint
+    - Task 3: Updating Jira ticket to Resolved, sending email to employee
+
+  Total runtime: ~30–60 seconds depending on LLM response speed.
+
+================================================================================
+  WHAT THE AGENT PRODUCES
+================================================================================
+
+  The mock connectors return realistic data so the agent generates real output:
+
+  jira.get_issue("HR-202") returns:
+    "HR Portal Link Broken. Status: In Progress. Reporter: jane.smith@company.com.
+     Description: The corporate HR benefits portal link yields a 404 page."
+
+  knowledge.search("HR benefits portal access") returns:
+    Hits from docs/runbook.txt with relevant policy snippets.
+
+  sharepoint.get_file(...) returns:
+    "Medical coverage: 100% preventive, Dental: up to $2000 annually.
+     Vision: $250 allowance for frames every 2 years.
+     Questions: contact benefits@company.com"
+
+  jira.update_issue("HR-202", comment=..., status="Resolved") returns:
+    "Successfully added comment '...' and status updated to 'Resolved'
+     to Jira issue HR-202."
+
+  outlook.send_email("jane.smith@company.com", subject=..., body=...) returns:
+    "Successfully sent email to 'jane.smith@company.com'."
+
+  Final crew output: a full formatted resolution report summarising all steps.
+
+================================================================================
+  ADDING A SECOND AGENT (optional extension)
+================================================================================
+
+  To escalate unresolved tickets to a senior HR manager, add this to agents.yaml:
+
+  hr_escalation_agent:
+    role: Senior HR Manager
+    goal: >
+      Review escalated HR tickets that could not be resolved at the support level.
+      Make a final decision and communicate it to the employee and HR director.
+    backstory: >
+      You are the Head of HR Operations with authority to approve exceptions,
+      override policy, and make binding decisions on employee benefit disputes.
+    llm: azure/gpt-4o
+    tools:
+      - jira.update_issue
+      - outlook.send_email
+
+  And add this task to tasks.yaml:
+
+  escalate_if_needed:
+    agent: hr_escalation_agent
+    description: >
+      Review the resolution summary from the previous tasks. If the issue could
+      not be fully resolved from policy documents alone (e.g. requires a manual
+      override or exception), update Jira ticket HR-202 using jira.update_issue
+      with an escalation note and email the HR director at hrdirector@company.com
+      using outlook.send_email with a summary of the case.
+    expected_output: >
+      Confirmation that the escalation note was added to the Jira ticket and
+      the HR director was notified by email.
+    depends_on:
+      - resolve_and_notify
+
+  And add the role to rbac.yaml:
+
+  Senior HR Manager:
+    allowed_tools:
+      - jira.update_issue
+      - outlook.send_email
+
+================================================================================
+  TROUBLESHOOTING
+================================================================================
+
+  Agent runs but produces no output / empty tasks
+    → Make sure agents.yaml and tasks.yaml have NO leading comment lines before
+      the first YAML key. The yaml.safe_load parser returns None if the file
+      contains only comments. Copy the blocks above exactly as shown.
+
+  "Tool not permitted" error
+    → The role name in rbac.yaml must match the  role:  field in agents.yaml
+      character-for-character including capitalisation.
+      This demo uses "HR Support Specialist" in both files.
+
+  "Agent 'hr_ticket_agent' does not exist" error
+    → The  agent:  field in tasks.yaml must match the top-level key in
+      agents.yaml exactly. Both use  hr_ticket_agent  in this demo.
+
+  LLM authentication error (401 / InvalidApiKey)
+    → Check your exported env vars are in the same terminal session.
+    → For Azure, confirm AZURE_OPENAI_DEPLOYMENT matches your actual deployment
+      name in the Azure portal (commonly "gpt-4o" or "gpt-4").
+
+  ChromaDB error on first run
+    → Run  crewctl index  once before  crewctl run  to build the vector store.
+
+================================================================================

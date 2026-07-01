@@ -1,34 +1,91 @@
 # ─────────────────────────────────────────────────────────────────────────────
 # memory.yaml
-# Configures the knowledge base that agents search via knowledge.search tool.
+#
+# Configures the knowledge base and conversation memory for all agents.
+# Agents search this knowledge base using the  knowledge.search  tool.
+#
+# FIELD REFERENCE
+# ───────────────
+#   memory.conversation     true/false — keep a conversation history per
+#                           session so agents remember earlier exchanges.
+#
+#   memory.persistent       Optional long-term memory store across runs.
+#     backend               redis  (requires a running Redis instance)
+#     ttl_days              How many days to retain stored memories.
+#
+#   memory.knowledge        Configuration for the RAG vector store.
+#     vector_store          chroma   → local file-based DB, zero setup needed
+#                           pgvector → Postgres extension, for production
+#     chunk_size            Characters per text chunk fed into the embedder.
+#     chunk_overlap         Characters of overlap between adjacent chunks
+#                           (improves retrieval at chunk boundaries).
+#     embedding_model       The OpenAI embedding model used to vectorise text.
+#                           Options: text-embedding-3-small (fast & cheap)
+#                                    text-embedding-3-large (higher accuracy)
+#
+#   memory.knowledge.sources
+#     A list of document sources to index. The orchestrator loads and
+#     vectorises all sources when you run  crewctl index.
+#     Supported types: text, confluence, sharepoint
 # ─────────────────────────────────────────────────────────────────────────────
 
-memory:
-  conversation: true
-  persistent:
-    backend: redis            # redis for persistent memory (optional)
-    ttl_days: 30
 
-  knowledge:
-    vector_store: chroma      # chroma = local file-based (no setup needed)
-                              # pgvector = postgres (production)
-    chunk_size: 512
-    chunk_overlap: 64
-    embedding_model: text-embedding-3-small
+# memory:
 
-    sources:
-      # Local text file — works out of the box, no credentials needed
-      - type: text
-        path: ./docs/runbook.txt
+  # ── Conversation memory ─────────────────────────────────────────────────────
+  # conversation: <true | false>
 
-      # Confluence — comment out if you don't have credentials yet
+
+  # ── Persistent long-term memory (optional, requires Redis) ──────────────────
+  # persistent:
+  #   backend: redis
+  #   ttl_days: <integer, e.g. 30>
+
+
+  # ── Knowledge / RAG vector store ────────────────────────────────────────────
+  # knowledge:
+  #   vector_store: <chroma | pgvector>
+  #   chunk_size: <integer, e.g. 512>
+  #   chunk_overlap: <integer, e.g. 64>
+  #   embedding_model: <text-embedding-3-small | text-embedding-3-large>
+
+  #   sources:
+
+      # ── SOURCE TYPE: local text file ────────────────────────────────────────
+      # No credentials needed. Great for runbooks, SOPs, and policy docs.
+      # Example:
+      #   - type: text
+      #     path: ./docs/runbook.txt
+      #
+      # - type: text
+      #   path: <relative or absolute path to a .txt or .md file>
+
+
+      # ── SOURCE TYPE: Confluence ──────────────────────────────────────────────
+      # Indexes all pages in a given Confluence space.
+      # Requires CONFLUENCE_TOKEN to be set as an environment variable.
+      # Example:
+      #   - type: confluence
+      #     base_url: https://your-company.atlassian.net/wiki
+      #     space: IT_DOCS
+      #     auth: env:CONFLUENCE_TOKEN
+      #
       # - type: confluence
-      #   base_url: https://your-company.atlassian.net/wiki
-      #   space: IT_DOCS
-      #   auth: env:CONFLUENCE_TOKEN
+      #   base_url: <https://your-company.atlassian.net/wiki>
+      #   space: <SPACE_KEY, e.g. IT_DOCS or HR_POLICIES>
+      #   auth: env:<ENV_VAR_NAME>
 
-      # SharePoint — comment out if you don't have credentials yet
+
+      # ── SOURCE TYPE: SharePoint ──────────────────────────────────────────────
+      # Indexes documents inside a SharePoint folder.
+      # Requires SHAREPOINT_TOKEN to be set as an environment variable.
+      # Example:
+      #   - type: sharepoint
+      #     site: https://your-company.sharepoint.com/sites/HR
+      #     folder: /Policies
+      #     auth: env:SHAREPOINT_TOKEN
+      #
       # - type: sharepoint
-      #   site: https://your-company.sharepoint.com/sites/HR
-      #   folder: /Policies
-      #   auth: env:SHAREPOINT_TOKEN
+      #   site: <https://your-company.sharepoint.com/sites/SiteName>
+      #   folder: <path to folder, e.g. /Policies>
+      #   auth: env:<ENV_VAR_NAME>

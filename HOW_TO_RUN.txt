@@ -1,0 +1,268 @@
+================================================================================
+  ENTERPRISE AGENT ORCHESTRATOR (crewctl) — HOW TO TEST & RUN
+================================================================================
+
+WHAT THIS PROJECT IS
+---------------------
+A no-code AI agent orchestration framework built on top of CrewAI.
+You define agents, tasks, memory, and access control entirely in YAML files.
+No Python required to create and run new agent workflows.
+
+QUICK START (5 steps)
+---------------------
+
+  1. CLONE & ENTER
+     ---------------
+     git clone <repository_url>
+     cd enterprise-agent
+
+  2. CREATE A VIRTUAL ENVIRONMENT (Python 3.10+, recommended 3.12)
+     ---------------------------------------------------------------
+     python3.12 -m venv .venv
+     source .venv/bin/activate          # macOS / Linux
+     # .venv\Scripts\activate.bat       # Windows CMD
+     # .venv\Scripts\Activate.ps1       # Windows PowerShell
+
+  3. INSTALL THE PACKAGE
+     --------------------
+     pip install -e .
+
+  4. SET YOUR API KEYS (pick the provider you want to use)
+     -------------------------------------------------------
+     # Azure OpenAI  (default in config.yaml)
+     export AZURE_OPENAI_API_KEY="sk-..."
+     export AZURE_OPENAI_ENDPOINT="https://your-endpoint.cognitiveservices.azure.com"
+     export AZURE_OPENAI_DEPLOYMENT="gpt-4o"
+     export AZURE_OPENAI_API_VERSION="2024-08-01-preview"
+
+     # — OR — OpenAI direct
+     export OPENAI_API_KEY="sk-..."
+
+     # — OR — Anthropic Claude
+     export ANTHROPIC_API_KEY="sk-ant-..."
+
+     # Optional extras (only needed if you use those connectors)
+     export SERPER_API_KEY="..."           # web_search.search
+     export ALPHAVANTAGE_API_KEY="..."     # web_search.get_stock
+     export JIRA_TOKEN="..."               # jira.*
+     export SERVICENOW_TOKEN="..."         # servicenow.*
+     export CONFLUENCE_TOKEN="..."         # confluence / memory sources
+     export SHAREPOINT_TOKEN="..."         # sharepoint.*
+     export OUTLOOK_CLIENT_ID="..."        # outlook.*
+     export OUTLOOK_CLIENT_SECRET="..."
+     export OUTLOOK_TENANT_ID="..."
+
+  5. RUN
+     ----
+     crewctl run
+
+     The agent crew defined in agents.yaml + tasks.yaml will execute.
+     All steps, tool calls, and outputs stream live to the terminal.
+
+================================================================================
+  ALL CLI COMMANDS
+================================================================================
+
+  crewctl run
+      Run the agent crew defined in the current directory.
+
+  crewctl new --template <name>
+      Scaffold fresh YAML configs from a built-in template.
+      Available templates:
+        - it-support      (Jira + ServiceNow + Outlook)
+        - hr-onboarding   (SharePoint + Outlook)
+        - data-analysis   (SAP + Outlook)
+      Example:
+        crewctl new --template it-support
+
+  crewctl index
+      Build the RAG vector store from sources defined in memory.yaml.
+      Options:
+        --config memory.yaml          Path to memory config (default: memory.yaml)
+        --source confluence:IT_DOCS   Index only a specific source
+        --status                      Print a summary table of indexed docs
+
+  crewctl ui --port 8000
+      Launch a local web dashboard to browse past runs, task logs, and metrics.
+      Open http://localhost:8000 in your browser.
+
+  crewctl audit --run-id <id>
+      Replay the full event log of a specific execution run.
+
+  crewctl audit --agent <role>
+      Show all tool calls made by a specific agent role across all runs.
+
+  crewctl watch "python my_crew.py"
+      Monitor an external crew script and stream its output.
+
+  crewctl deploy
+      Simulate a deployment to a Kubernetes cluster (demo mode).
+
+================================================================================
+  YAML FILES — WHAT EACH ONE DOES
+================================================================================
+
+  config.yaml
+      Global settings: which LLM to use, max agent steps, execution mode
+      (sequential / parallel / hierarchical), and LLM cost tracking.
+      START HERE when switching LLM providers.
+
+  agents.yaml
+      Define every AI agent: its role, goal, backstory, LLM, and which tools
+      it is allowed to call. Each agent maps to one entry.
+
+  tasks.yaml
+      Define the concrete work to be done. Each task names an agent,
+      provides detailed instructions (description), states what success
+      looks like (expected_output), and declares dependencies (depends_on).
+
+  memory.yaml
+      Configure the RAG knowledge base. Choose a vector store (chroma or
+      pgvector), set chunk sizes, and list document sources (local files,
+      Confluence, SharePoint).
+
+  rbac.yaml
+      Role-based access control. Each agent role lists exactly which
+      connector methods it may call. Wildcards (e.g. web_search.*) are
+      supported. The orchestrator enforces this at runtime.
+
+================================================================================
+  EXECUTION MODES (set in config.yaml → process:)
+================================================================================
+
+  sequential
+      Tasks run one after the other in the order they are listed.
+      Simplest to reason about. Use for straightforward pipelines.
+
+  parallel
+      Tasks with an empty depends_on run concurrently.
+      Tasks listed in depends_on wait for those predecessors to finish.
+      Use when independent tasks can overlap (e.g. fetch prices AND news
+      at the same time, then write the report once both are done).
+
+  hierarchical
+      A manager LLM dynamically assigns tasks to worker agents.
+      Use for complex, open-ended workflows.
+
+================================================================================
+  AVAILABLE CONNECTORS (tools you can reference in agents.yaml / rbac.yaml)
+================================================================================
+
+  web_search.search          Search the web (requires SERPER_API_KEY)
+  web_search.get_stock       Fetch real-time stock quote (ALPHAVANTAGE_API_KEY)
+  web_search.scrape_page     Read full HTML page content from a URL
+
+  jira.get_issue             Fetch a Jira issue by ID
+  jira.create_issue          Create a new Jira issue
+  jira.update_issue          Update fields on an existing Jira issue
+
+  servicenow.create_ticket   Create a ServiceNow incident
+  servicenow.update_ticket   Update a ServiceNow incident
+
+  confluence.get_page        Fetch a Confluence page by title
+  confluence.search          Full-text search across Confluence spaces
+
+  sharepoint.get_file        Download a file from SharePoint
+  sharepoint.list_files      List files in a SharePoint folder
+
+  outlook.send_email         Send an email via Microsoft Graph API
+  outlook.read_emails        Read recent emails from an Outlook mailbox
+
+  sap.get_record             Query an SAP table record
+  sap.update_record          Update a field in an SAP table
+
+  knowledge.search           Semantic search across the RAG vector store
+                             (built from sources in memory.yaml)
+
+================================================================================
+  ADDING A CUSTOM CONNECTOR (tool)
+================================================================================
+
+  1. Create connectors/mytool.py and subclass BaseConnector.
+     Each public method becomes a callable tool.
+
+  2. Register it in runtime/orchestrator.py CONNECTOR_MAP:
+       "mytool": MyToolConnector
+
+  3. Add permissions in rbac.yaml:
+       roles:
+         my_agent_role:
+           allowed_tools:
+             - mytool.my_method
+
+  4. Reference it in agents.yaml:
+       tools:
+         - mytool.my_method
+
+================================================================================
+  SAMPLE WORKFLOW — STOCK RESEARCH (the default config)
+================================================================================
+
+  The default agents.yaml + tasks.yaml ships a 3-task stock research crew:
+
+    Task 1: fetch_stock_prices
+      → stock_research_agent fetches live prices for AAPL, MSFT, NVDA
+      → uses web_search.get_stock
+
+    Task 2: search_latest_news   (runs in parallel with Task 1)
+      → searches web and scrapes top articles
+      → uses web_search.search + web_search.scrape_page
+
+    Task 3: write_research_report  (waits for Tasks 1 & 2)
+      → assembles a formatted investment brief
+      → optionally emails it via outlook.send_email
+
+  Required env vars for this workflow:
+    AZURE_OPENAI_API_KEY (or OPENAI_API_KEY)
+    SERPER_API_KEY
+    ALPHAVANTAGE_API_KEY
+
+================================================================================
+  TROUBLESHOOTING
+================================================================================
+
+  "ModuleNotFoundError"
+      Run:  pip install -e .
+      Make sure your .venv is activated.
+
+  "No module named crewai"
+      The editable install pulls crewai>=0.80.0. If it is missing:
+        pip install crewai
+
+  "Authentication error" / 401
+      Check your exported environment variables. Keys must be exported in the
+      same terminal session where you run crewctl.
+
+  "Tool not permitted"
+      The agent's role is not listed in rbac.yaml for that tool.
+      Add the tool under the correct role in rbac.yaml.
+
+  ChromaDB / vector store errors on first run
+      Run:  crewctl index
+      This builds the .chroma_db folder from your memory.yaml sources.
+
+  Redis connection error
+      memory.yaml has persistent.backend: redis but Redis is not running.
+      Either start Redis locally, or change the backend to a local option
+      or remove the persistent block entirely.
+
+================================================================================
+  PROJECT STRUCTURE
+================================================================================
+
+  enterprise-agent/
+  ├── agents.yaml          Agent definitions
+  ├── tasks.yaml           Task definitions & dependencies
+  ├── config.yaml          Global LLM & runtime settings
+  ├── memory.yaml          RAG knowledge base configuration
+  ├── rbac.yaml            Tool access control per agent role
+  ├── cli/                 crewctl CLI commands
+  ├── connectors/          Enterprise tool connectors (Jira, SAP, etc.)
+  ├── memory/              Vector store + document loaders
+  ├── monitoring/          Audit log, dashboard, tracer
+  ├── runtime/             Orchestrator, LLM router, task graph
+  ├── security/            RBAC enforcement + secrets manager
+  ├── utils/               Config loader + logger
+  └── docs/runbook.txt     Sample knowledge base document
+
+================================================================================

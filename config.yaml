@@ -1,23 +1,88 @@
 # ─────────────────────────────────────────────────────────────────────────────
 # config.yaml
+#
+# Global runtime settings for the crewctl orchestrator.
+# This is the first file to edit when switching LLM providers or tuning
+# execution behaviour. All other YAML files can reference the default_llm
+# set here without repeating it.
 # ─────────────────────────────────────────────────────────────────────────────
 
-secrets_backend: env
-max_steps_default: 15
 
-# parallel: fetch_stock_prices and search_latest_news run at the same time
-# write_research_report waits for both (depends_on handles this automatically)
-process: sequential
+# ── secrets_backend ──────────────────────────────────────────────────────────
+# Where the orchestrator reads API keys and credentials from.
+# Options:
+#   env    → plain environment variables (simplest, recommended for local dev)
+#   vault  → HashiCorp Vault (recommended for production)
+#   aws    → AWS Secrets Manager
+#
+# Example:
+#   secrets_backend: env
+# secrets_backend: <env | vault | aws>
 
-default_llm: azure/gpt-4o
 
-llm_costs:
-  azure/gpt-4o:
-    input_per_1k: 0.005
-    output_per_1k: 0.015
-  openai/gpt-4o:
-    input_per_1k: 0.005
-    output_per_1k: 0.015
-  anthropic/claude-3-5-sonnet-20241022:
-    input_per_1k: 0.003
-    output_per_1k: 0.015
+# ── max_steps_default ─────────────────────────────────────────────────────────
+# Maximum number of reasoning/tool-call steps an agent may take per task.
+# Prevents runaway loops. Increase if complex tasks need more iterations.
+#
+# Example:
+#   max_steps_default: 15
+# max_steps_default: <integer, e.g. 10>
+
+
+# ── process ───────────────────────────────────────────────────────────────────
+# Controls how tasks are scheduled across agents.
+# Options:
+#   sequential    → tasks run one after the other in declaration order
+#   parallel      → tasks with no depends_on run at the same time;
+#                   tasks with depends_on wait for their prerequisites
+#   hierarchical  → a manager LLM dynamically assigns tasks to worker agents
+#
+# Example:
+#   process: sequential
+# process: <sequential | parallel | hierarchical>
+
+
+# ── default_llm ───────────────────────────────────────────────────────────────
+# The LLM used by any agent that does not declare its own llm: field.
+# Format is  <provider>/<model-name>
+#
+# Supported providers and example values:
+#   Azure OpenAI  → azure/gpt-4o
+#   OpenAI        → openai/gpt-4o
+#   Anthropic     → anthropic/claude-3-5-sonnet-20241022
+#   Google Gemini → google/gemini-1.5-pro
+#   Groq          → groq/llama3-70b-8192
+#   Ollama (local)→ ollama/llama3
+#
+# Example:
+#   default_llm: azure/gpt-4o
+# default_llm: <provider/model>
+
+
+# ── llm_costs ─────────────────────────────────────────────────────────────────
+# Optional cost tracking. The orchestrator logs estimated token spend per run.
+# Values are USD per 1 000 tokens for input and output separately.
+# Add any model you use; unknown models are tracked as $0.
+#
+# Example:
+#   llm_costs:
+#     azure/gpt-4o:
+#       input_per_1k: 0.005
+#       output_per_1k: 0.015
+#     openai/gpt-4o:
+#       input_per_1k: 0.005
+#       output_per_1k: 0.015
+#     anthropic/claude-3-5-sonnet-20241022:
+#       input_per_1k: 0.003
+#       output_per_1k: 0.015
+#     google/gemini-1.5-pro:
+#       input_per_1k: 0.00125
+#       output_per_1k: 0.00375
+#     groq/llama3-70b-8192:
+#       input_per_1k: 0.00059
+#       output_per_1k: 0.00079
+#
+# llm_costs:
+#   <provider/model>:
+#     input_per_1k: <float>
+#     output_per_1k: <float>

@@ -162,9 +162,10 @@ perform_web_search:
 write_research_report:
   agent: senior_writer
   description: >
-    Review the research findings generated from the perform_web_search task.
-    Also, query the internal knowledge base using knowledge.search for any reference to "Agent runbook" or "VPN" to see if there is company-specific policy related to agent deployment.
-    Synthesize all of this information into a structured, executive-ready research report.
+    Review the research findings generated from the perform_web_search task:
+    {perform_web_search}
+
+    Synthesize this information into a structured, executive-ready research report.
     Use clear markdown formatting with headers, bullet points, and a "Sources Cited" section at the end.
   expected_output: >
     A polished markdown-formatted research report containing executive summaries, key trends, architectural comparisons, and clear citations of the scraped URLs.

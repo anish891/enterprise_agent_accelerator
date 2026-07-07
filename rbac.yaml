@@ -112,5 +112,4 @@ roles:
       - web_search.search
       - web_search.scrape_page
   senior_report_writer:
-    allowed_tools:
-      - knowledge.search
+    allowed_tools: []

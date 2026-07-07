@@ -67,6 +67,7 @@ class WebSearchConnector(BaseConnector):
             )
 
         try:
+            print(f"\n🌐 [Search API] Querying Google: '{query}'")
             response = requests.post(
                 "https://google.serper.dev/search",
                 headers={
@@ -92,6 +93,7 @@ class WebSearchConnector(BaseConnector):
                 title = item.get("title", "")
                 link = item.get("link", "")
                 snippet = item.get("snippet", "")
+                print(f"  🔗 Source {i}: {link} ({title})")
                 output_lines.append(f"{i}. {title}\n   {link}\n   {snippet}\n")
 
             # Answer box if present (direct answers)
@@ -189,6 +191,7 @@ class WebSearchConnector(BaseConnector):
         URL found from a web search. Returns up to max_chars characters of text.
         """
         try:
+            print(f"📖 [Scraper API] Scraping content from: {url}")
             headers = {
                 "User-Agent": (
                     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "

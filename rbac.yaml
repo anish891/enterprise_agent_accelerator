@@ -107,10 +107,10 @@
   #     - <connector.*>       # e.g. web_search.*  (wildcard for all methods)
 
 roles:
-  Lead Web Research Analyst:
+  lead_web_research_analyst:
     allowed_tools:
       - web_search.search
       - web_search.scrape_page
-  Senior Report Writer:
+  senior_report_writer:
     allowed_tools:
       - knowledge.search

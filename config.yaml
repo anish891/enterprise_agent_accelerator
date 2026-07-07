@@ -86,3 +86,20 @@
 #   <provider/model>:
 #     input_per_1k: <float>
 #     output_per_1k: <float>
+
+secrets_backend: env
+max_steps_default: 15
+process: parallel
+
+default_llm: azure/gpt-4o
+
+llm_costs:
+  openai/gpt-4o:
+    input_per_1k: 0.005
+    output_per_1k: 0.015
+  azure/gpt-4o:
+    input_per_1k: 0.005
+    output_per_1k: 0.015
+  anthropic/claude-3-5-sonnet-20241022:
+    input_per_1k: 0.003
+    output_per_1k: 0.015

@@ -105,3 +105,12 @@
   #   allowed_tools:
   #     - <connector.method>  # e.g. jira.get_issue
   #     - <connector.*>       # e.g. web_search.*  (wildcard for all methods)
+
+roles:
+  Lead Web Research Analyst:
+    allowed_tools:
+      - web_search.search
+      - web_search.scrape_page
+  Senior Report Writer:
+    allowed_tools:
+      - knowledge.search

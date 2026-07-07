@@ -148,3 +148,27 @@
 #     - <task_id>     # list task IDs this task waits for, or use [] for none
 
 
+perform_web_search:
+  agent: lead_researcher
+  description: >
+    Search the web using web_search.search for: "Key trends in generative AI agent orchestrators for enterprise 2026".
+    Review the search results, find the top 2-3 most promising URLs, and scrape their content
+    using web_search.scrape_page.
+    Extract the key findings, including frameworks mentioned, architecture patterns, and industry adoption statistics.
+  expected_output: >
+    A detailed research synthesis containing raw notes, key facts, statistics, and URLs gathered from the web.
+  depends_on: []
+
+write_research_report:
+  agent: senior_writer
+  description: >
+    Review the research findings generated from the perform_web_search task.
+    Also, query the internal knowledge base using knowledge.search for any reference to "Agent runbook" or "VPN" to see if there is company-specific policy related to agent deployment.
+    Synthesize all of this information into a structured, executive-ready research report.
+    Use clear markdown formatting with headers, bullet points, and a "Sources Cited" section at the end.
+  expected_output: >
+    A polished markdown-formatted research report containing executive summaries, key trends, architectural comparisons, and clear citations of the scraped URLs.
+  depends_on:
+    - perform_web_search
+
+

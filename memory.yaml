@@ -89,3 +89,17 @@
       #   site: <https://your-company.sharepoint.com/sites/SiteName>
       #   folder: <path to folder, e.g. /Policies>
       #   auth: env:<ENV_VAR_NAME>
+
+
+memory:
+  conversation: true
+
+  knowledge:
+    vector_store: chroma
+    chunk_size: 512
+    chunk_overlap: 64
+    embedding_model: text-embedding-3-small
+
+    sources:
+      - type: text
+        path: ./docs/runbook.txt

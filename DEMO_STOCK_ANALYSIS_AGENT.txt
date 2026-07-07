@@ -1,0 +1,203 @@
+================================================================================
+  DEMO — REAL-TIME STOCK RESEARCH & PERFORMANCE ANALYST
+  Copy the blocks below directly into each YAML file, then run: crewctl run
+================================================================================
+
+This demo configures a multi-step Stock Research Agent workflow that:
+  1. Fetches a live stock quote (via Alpha Vantage or mock data).
+  2. Queries Google Search (via Serper API) for the latest company news and drivers.
+  3. Scrapes the top news articles to extract financial catalysts.
+  4. Generates a structured markdown Investment Brief with clear stepwise CLI logs.
+
+================================================================================
+  STEP 1 — SET KEY ENV VARIABLES (LLM + Search Credentials)
+================================================================================
+
+Export these variables in your terminal before running:
+
+  # Option A — OpenAI Direct (Recommended)
+  export OPENAI_API_KEY="your-openai-key-here"
+
+  # Option B — Azure OpenAI
+  export AZURE_OPENAI_API_KEY="your-azure-key-here"
+  export AZURE_OPENAI_ENDPOINT="https://your-resource.openai.azure.com"
+  export AZURE_OPENAI_DEPLOYMENT="gpt-4o"
+  export AZURE_OPENAI_API_VERSION="2024-08-01-preview"
+
+To enable live Google Search results and real stock quotes:
+  # Serper API Key (Sign up at https://serper.dev for 2500 free queries)
+  export SERPER_API_KEY="your-serper-api-key-here"
+  
+  # Alpha Vantage Key (Free from https://www.alphavantage.co)
+  export ALPHA_VANTAGE_KEY="your-alpha-vantage-key-here"
+
+================================================================================
+  STEP 2 — COPY INTO config.yaml  (replace entire file contents)
+================================================================================
+
+secrets_backend: env
+max_steps_default: 15
+process: parallel
+
+default_llm: azure/gpt-4o
+
+llm_costs:
+  openai/gpt-4o:
+    input_per_1k: 0.005
+    output_per_1k: 0.015
+  azure/gpt-4o:
+    input_per_1k: 0.005
+    output_per_1k: 0.015
+  anthropic/claude-3-5-sonnet-20241022:
+    input_per_1k: 0.003
+    output_per_1k: 0.015
+
+================================================================================
+  STEP 3 — COPY INTO agents.yaml  (replace entire file contents)
+================================================================================
+
+stock_researcher:
+  role: Stock Research Analyst
+  goal: >
+    Gather live stock price data and query Google Search to identify the main news
+    drivers causing the stock to move today. Scrape articles to extract key facts.
+  backstory: >
+    You are a senior equity analyst. You specialize in tracking price action, corporate announcements,
+    earnings updates, and macro news affecting stock ticker valuations.
+  llm: azure/gpt-4o
+  tools:
+    - web_search.get_stock
+    - web_search.search
+    - web_search.scrape_page
+
+senior_writer:
+  role: Senior Report Writer
+  goal: >
+    Take stock price details and research notes, and synthesize them into a professional
+    markdown-formatted Investment Brief for portfolio managers.
+  backstory: >
+    You are a professional financial journalist. You translate messy market raw data and news
+    summaries into polished, clean, and highly readable investment reports.
+  llm: azure/gpt-4o
+  tools: []
+
+================================================================================
+  STEP 4 — COPY INTO tasks.yaml  (replace entire file contents)
+================================================================================
+
+gather_stock_data:
+  agent: stock_researcher
+  description: >
+    1. Fetch the live stock quote for Trent Limited (ticker: TRENT) or Apple (ticker: AAPL)
+       using web_search.get_stock.
+    2. Search the web using web_search.search for: "why TRENT stock is up or down today" (or AAPL).
+    3. Scrape the top news article to get details using web_search.scrape_page.
+  expected_output: >
+    A summary of the stock's current price and a collection of news findings explaining why the stock moved.
+  depends_on: []
+
+compile_investment_brief:
+  agent: senior_writer
+  description: >
+    Review the stock data and news findings gathered from the gather_stock_data task:
+    {gather_stock_data}
+
+    Synthesize this information into a structured Investment Brief. Include a table of the stock
+    metrics, bullet points outlining key drivers (like earnings or product launches), and a
+    sources cited list.
+  expected_output: >
+    A formatted markdown Investment Brief containing executive summaries, price metrics, key drivers, and source citations.
+  depends_on:
+    - gather_stock_data
+
+================================================================================
+  STEP 5 — COPY INTO rbac.yaml  (replace entire file contents)
+================================================================================
+
+roles:
+  stock_researcher:
+    allowed_tools:
+      - web_search.get_stock
+      - web_search.search
+      - web_search.scrape_page
+  senior_report_writer:
+    allowed_tools: []
+
+================================================================================
+  STEP 6 — COPY INTO memory.yaml  (replace entire file contents)
+================================================================================
+
+memory:
+  conversation: true
+
+  knowledge:
+    vector_store: chroma
+    chunk_size: 512
+    chunk_overlap: 64
+    embedding_model: text-embedding-3-small
+
+    sources:
+      - type: text
+        path: ./docs/runbook.txt
+
+================================================================================
+  STEP 7 — STEP-BY-STEP CLI LOGS (What you will see in the terminal)
+================================================================================
+
+When you run `crewctl run`, the orchestrator streams execution stepwise:
+
+--------------------------------------------------------------------------------
+[STEP 1] Orchestrator Initialization & Security Check
+--------------------------------------------------------------------------------
+The engine checks `rbac.yaml` to ensure the agent roles are allowed to access the tools.
+LOG:
+  "Starting Run <run_id> on crew 'enterprise-agent'"
+  "Kicking off parallel Task: gather_stock_data"
+
+--------------------------------------------------------------------------------
+[STEP 2] Fetching Live Stock Quote
+--------------------------------------------------------------------------------
+The researcher uses `web_search.get_stock` for the target ticker symbol.
+LOG:
+  Tool: web_search_get_stock
+  Args: {'symbol': 'TRENT'}
+  Output: 
+    Stock Quote: TRENT (or mock fallback details: Price, Day High, Day Low)
+
+--------------------------------------------------------------------------------
+[STEP 3] Querying Google Search
+--------------------------------------------------------------------------------
+The researcher calls the `web_search.search` tool to fetch recent articles.
+LOG:
+  Tool: web_search_search
+  Args: {'query': 'why TRENT stock is up or down today'}
+  Output:
+    🌐 [Search API] Querying Google: 'why TRENT stock is up or down today'
+      🔗 Source 1: https://economictimes.indiatimes.com/trent-price-action
+      🔗 Source 2: https://moneycontrol.com/trent-earnings-surge
+    Web search results for: 'why TRENT stock is up or down today'...
+
+--------------------------------------------------------------------------------
+[STEP 4] Scraping News Article Content
+--------------------------------------------------------------------------------
+The researcher scrapes the content of the top article link.
+LOG:
+  Tool: web_search_scrape_page
+  Args: {'url': 'https://moneycontrol.com/trent-earnings-surge'}
+  Output:
+    📖 [Scraper API] Scraping content from: https://moneycontrol.com/trent-earnings-surge
+    Content from https://moneycontrol.com/trent-earnings-surge:
+      Trent Limited reports a 45% increase in net profit for Q4, driven by strong growth in Zudio outlets...
+
+--------------------------------------------------------------------------------
+[STEP 5] Synthesizing & Compiling Report
+--------------------------------------------------------------------------------
+The writer agent synthesizes the gather_stock_data output and generates the Investment Brief.
+LOG:
+  "Kicking off parallel Task: compile_investment_brief"
+  Agent: Senior Report Writer
+  Final Answer:
+    # Investment Brief: Trent Limited (TRENT)
+    ## Executive Summary
+    ...
+================================================================================

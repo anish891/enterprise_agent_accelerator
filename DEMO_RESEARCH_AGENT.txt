@@ -1,0 +1,161 @@
+================================================================================
+  DEMO — DEEP RESEARCH & ANALYSIS AGENT
+  Copy the blocks below directly into each YAML file, then run: crewctl run
+================================================================================
+
+This demo configures a multi-step Deep Research Agent workflow that:
+  1. Searches the web using Google Search (via Serper API) on a given topic.
+  2. Scrapes the contents of the top relevant web articles.
+  3. Synthesizes findings, resolves facts, and performs an analysis.
+  4. Generates a comprehensive research report with source citations.
+
+Both the web search and web scraper fall back to realistic mock results if no API keys
+are set, allowing you to test the orchestrator's graph execution immediately.
+
+================================================================================
+  STEP 1 — SET KEY ENV VARIABLES (LLM + Search Credentials)
+  Export these variables in your terminal before running:
+================================================================================
+
+Pick whichever LLM provider you have a key for and export it:
+
+  # Option A — OpenAI Direct (Recommended)
+  export OPENAI_API_KEY="your-openai-key-here"
+
+  # Option B — Azure OpenAI
+  export AZURE_OPENAI_API_KEY="your-azure-key-here"
+  export AZURE_OPENAI_ENDPOINT="https://your-resource.openai.azure.com"
+  export AZURE_OPENAI_DEPLOYMENT="gpt-4o"
+  export AZURE_OPENAI_API_VERSION="2024-08-01-preview"
+
+  # Option C — Anthropic Claude
+  export ANTHROPIC_API_KEY="your-anthropic-key-here"
+
+To enable live Google Search results:
+  # Serper API Key (Sign up at https://serper.dev for 2500 free queries)
+  export SERPER_API_KEY="your-serper-api-key-here"
+
+================================================================================
+  STEP 2 — COPY INTO config.yaml  (replace entire file contents)
+================================================================================
+
+secrets_backend: env
+max_steps_default: 15
+process: parallel
+
+default_llm: openai/gpt-4o
+
+llm_costs:
+  openai/gpt-4o:
+    input_per_1k: 0.005
+    output_per_1k: 0.015
+  azure/gpt-4o:
+    input_per_1k: 0.005
+    output_per_1k: 0.015
+  anthropic/claude-3-5-sonnet-20241022:
+    input_per_1k: 0.003
+    output_per_1k: 0.015
+
+================================================================================
+  STEP 3 — COPY INTO agents.yaml  (replace entire file contents)
+================================================================================
+
+lead_researcher:
+  role: Lead Web Research Analyst
+  goal: >
+    Find, retrieve, and synthesize information on target topics using web search
+    and web scraping tools. Ensure that data is gathered from diverse and high-quality sources.
+  backstory: >
+    You are a master research librarian and web investigator. You are extremely skilled at
+    crafting optimal search queries, navigating complex pages, scraping content, and extracting
+    factual nuggets while filtering out noise and advertising.
+  llm: openai/gpt-4o
+  tools:
+    - web_search.search
+    - web_search.scrape_page
+
+senior_writer:
+  role: Senior Report Writer
+  goal: >
+    Take raw research briefs and synthesize them into high-quality, professional reports
+    suitable for executive review. Provide clear headings, formatting, and correct citations.
+  backstory: >
+    You are an expert technical and business writer. You specialize in taking messy, complex
+    factual research outputs and structuring them into beautifully formatted markdown reports.
+    You excel at making technical information engaging and easy to digest.
+  llm: openai/gpt-4o
+  tools:
+    - knowledge.search
+
+================================================================================
+  STEP 4 — COPY INTO tasks.yaml  (replace entire file contents)
+================================================================================
+
+perform_web_search:
+  agent: lead_researcher
+  description: >
+    Search the web using web_search.search for: "Key trends in generative AI agent orchestrators for enterprise 2026".
+    Review the search results, find the top 2-3 most promising URLs, and scrape their content
+    using web_search.scrape_page.
+    Extract the key findings, including frameworks mentioned, architecture patterns, and industry adoption statistics.
+  expected_output: >
+    A detailed research synthesis containing raw notes, key facts, statistics, and URLs gathered from the web.
+  depends_on: []
+
+write_research_report:
+  agent: senior_writer
+  description: >
+    Review the research findings generated from the perform_web_search task.
+    Also, query the internal knowledge base using knowledge.search for any reference to "Agent runbook" or "VPN" to see if there is company-specific policy related to agent deployment.
+    Synthesize all of this information into a structured, executive-ready research report.
+    Use clear markdown formatting with headers, bullet points, and a "Sources Cited" section at the end.
+  expected_output: >
+    A polished markdown-formatted research report containing executive summaries, key trends, architectural comparisons, and clear citations of the scraped URLs.
+  depends_on:
+    - perform_web_search
+
+================================================================================
+  STEP 5 — COPY INTO rbac.yaml  (replace entire file contents)
+================================================================================
+
+roles:
+  Lead Web Research Analyst:
+    allowed_tools:
+      - web_search.search
+      - web_search.scrape_page
+  Senior Report Writer:
+    allowed_tools:
+      - knowledge.search
+
+================================================================================
+  STEP 6 — COPY INTO memory.yaml  (replace entire file contents)
+================================================================================
+
+memory:
+  conversation: true
+
+  knowledge:
+    vector_store: chroma
+    chunk_size: 512
+    chunk_overlap: 64
+    embedding_model: text-embedding-3-small
+
+    sources:
+      - type: text
+        path: ./docs/runbook.txt
+
+================================================================================
+  STEP 7 — RUN AND DEMONSTRATE
+================================================================================
+
+Ensure you run the indexer once to build your local Chroma database:
+  crewctl index
+
+To execute the research crew, run:
+  crewctl run
+
+The output will stream to your terminal:
+  1. The 'lead_researcher' agent starts by running a search on generative AI orchestrators.
+  2. It scrapes details from the search results to extract key facts.
+  3. The 'senior_writer' agent is activated after the research task finishes, combining the scraped web notes with company policies fetched via 'knowledge.search' to compile a professional markdown report.
+================================================================================

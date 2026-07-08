@@ -1,3 +1,4 @@
+README.md
 pyproject.toml
 cli/index.py
 cli/main.py
@@ -25,6 +26,7 @@ memory/loaders/sharepoint_loader.py
 monitoring/audit.py
 monitoring/dashboard.py
 monitoring/tracer.py
+monitoring/web_ui.py
 runtime/llm_router.py
 runtime/orchestrator.py
 runtime/task_graph.py

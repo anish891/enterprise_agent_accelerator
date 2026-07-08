@@ -25,6 +25,7 @@ from connectors.outlook import OutlookConnector
 from connectors.confluence import ConfluenceConnector
 from connectors.rest_auto import RESTAutoConnector
 from connectors.web_search import WebSearchConnector
+from connectors.local_file import LocalFileConnector
 
 logger = get_logger("runtime.orchestrator")
 
@@ -36,6 +37,7 @@ CONNECTOR_MAP: Dict[str, Any] = {
     "outlook": OutlookConnector,
     "confluence": ConfluenceConnector,
     "web_search": WebSearchConnector,
+    "local_file": LocalFileConnector,
 }
 
 @dataclass

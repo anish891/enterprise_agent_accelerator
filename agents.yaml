@@ -12,6 +12,9 @@ lead_researcher:
   tools:
     - web_search.search
     - web_search.scrape_page
+    - local_file.read_file
+    - local_file.write_file
+    - knowledge.search
 
 senior_writer:
   role: Senior Report Writer

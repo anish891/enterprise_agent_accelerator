@@ -4,12 +4,13 @@
 perform_web_search:
   agent: lead_researcher
   description: >
-    Search the web using web_search.search for: "Key trends in generative AI agent orchestrators for enterprise 2026".
-    Review the search results, find the top 2-3 most promising URLs, and scrape their content
-    using web_search.scrape_page.
-    Extract the key findings, including frameworks mentioned, architecture patterns, and industry adoption statistics.
+    1. Read the company's existing runbook file located at './docs/runbook.txt' using the local_file.read_file tool.
+    2. Search the internal knowledge base using the knowledge.search tool for the term "VPN Troubleshooting Guide" or "Onboarding Checklist" to see if there is any stored vector memory.
+    3. Search the web using web_search.search for: "Key trends in generative AI agent orchestrators for enterprise 2026".
+    4. Review the search results, find the top 2-3 most promising URLs, and scrape their content using web_search.scrape_page.
+    5. Save/persist your raw search findings and notes into a new local file at './docs/search_findings.txt' using the local_file.write_file tool.
   expected_output: >
-    A detailed research synthesis containing raw notes, key facts, statistics, and URLs gathered from the web.
+    A detailed research synthesis containing raw notes, key facts, statistics, and URLs gathered from the web, and confirmation that the findings were saved to './docs/search_findings.txt'.
   depends_on: []
 
 write_research_report:

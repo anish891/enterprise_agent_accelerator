@@ -172,12 +172,50 @@ You need to provide your API keys to authorize agents to communicate with LLM pr
 
 ### Step 5: Configure the Workforce (No-Code Configuration)
 
-Customize the `.yaml` files in the root folder using any text editor:
-1.  **`config.yaml`**: Set global parameters (default LLM model, execution style like `sequential` or `parallel`).
-2.  **`agents.yaml`**: Specify agent roles, backstories, and which tools they have access to.
-3.  **`tasks.yaml`**: Define instructions, outputs, and dependencies for each task.
-4.  **`rbac.yaml`**: Authorize permissions for agents to use specific connectors.
-5.  **`memory.yaml`**: Configure corporate PDFs or Confluence pages for the local search index.
+You can construct or scaffold your configuration files using either built-in templates or by editing the YAML configuration files directly in the root directory.
+
+#### A. Scaffold from a Template (Recommended for Beginners)
+The framework ships with pre-built workforce templates for common enterprise roles. You can scaffold a template directly in your current directory:
+```bash
+# Available templates: it-support, hr-onboarding, data-analysis
+crewctl new --template it-support
+```
+This will automatically generate starter configurations for you.
+
+#### B. Direct YAML Configuration Structure
+You can customize the `.yaml` files in the root folder using any text editor:
+
+1.  **`config.yaml`**: Set global parameters (default LLM model, execution style like `sequential` or `parallel`, etc.).
+2.  **`agents.yaml`**: Define your agent workforce roles, goals, backstories, and allowed tools.
+    ```yaml
+    lead_researcher:
+      role: Lead Web Research Analyst
+      goal: Find and synthesize information using web tools.
+      backstory: You are a master researcher librarian and web investigator.
+      llm: azure/gpt-4o
+      tools:
+        - web_search.search
+        - web_search.scrape_page
+        - knowledge.search
+    ```
+3.  **`tasks.yaml`**: Define the concrete sequence of tasks, matching agents to actions, specifying expected outputs, and creating execution dependencies.
+    ```yaml
+    perform_web_search:
+      agent: lead_researcher
+      description: Search the web for "Key trends in AI agent orchestrators".
+      expected_output: A detailed synthesis of AI trends and sources.
+      depends_on: [] # Empty because it runs first
+    ```
+4.  **`rbac.yaml`**: Role-Based Access Control list. You must authorize which agent roles are allowed to run which tool/connector methods.
+    ```yaml
+    roles:
+      lead_researcher:
+        allowed_tools:
+          - web_search.search
+          - web_search.scrape_page
+          - knowledge.search
+    ```
+5.  **`memory.yaml`**: Configure documents (PDFs, Confluence pages, SharePoint directories) to be indexed for RAG retrieval.
 
 ---
 
@@ -198,6 +236,66 @@ Customize the `.yaml` files in the root folder using any text editor:
     *All agent thoughts, tool execution results, costs, and token tallies will stream directly to your terminal.*
 
 ---
+
+## 💻 CLI Commands Reference
+
+Here is a full breakdown of the `crewctl` CLI utilities at your disposal:
+
+| Command | Description | Example Usage |
+| :--- | :--- | :--- |
+| `crewctl run` | Executes the agent workforce declared in `agents.yaml` and `tasks.yaml`. | `crewctl run` |
+| `crewctl new` | Scaffolds fresh YAML configuration templates (`it-support`, `hr-onboarding`, `data-analysis`). | `crewctl new --template it-support` |
+| `crewctl index` | Indexes knowledge documents from `memory.yaml` into your vector store. | `crewctl index` |
+| `crewctl ui` | Launches a local Web UI dashboard to browse past runs, task status, execution logs, and token usage metrics. | `crewctl ui --port 8000` |
+| `crewctl audit` | Replays the execution events or logs of past runs/agent tool calls. | `crewctl audit --run-id <run_id>` or `crewctl audit --agent lead_researcher` |
+| `crewctl watch` | Monitor an external execution script and stream its logs. | `crewctl watch "python my_crew.py"` |
+| `crewctl deploy` | Simulates a containerized Kubernetes deployment (Demo mode). | `crewctl deploy` |
+
+---
+
+## 📂 Project Structure
+
+Understanding the layout of this repository helps you know where components reside:
+
+```text
+enterprise-agent/
+├── config.yaml          # Global LLM settings & execution style
+├── agents.yaml          # Agent definitions, goals, and backstories
+├── tasks.yaml           # Concrete tasks, expectations, and dependencies
+├── memory.yaml          # RAG databases & files index definitions
+├── rbac.yaml            # RBAC permissions per agent role
+├── cli/                 # The CLI module files powering crewctl commands
+├── connectors/          # Pre-built enterprise connectors (Jira, SAP, Outlook, etc.)
+├── memory/              # Vector database integrations and loaders
+├── monitoring/          # Run logger, audit player, and dashboard server
+├── runtime/             # Orchestrator core, LLM routing, and task graphs
+├── security/            # Token enforcement and active RBAC validation
+└── utils/               # App configuration loaders and logging utilities
+```
+
+---
+
+## 🔍 Troubleshooting
+
+Here are common issues developers and analysts face during initial setup:
+
+*   **`ModuleNotFoundError: No module named '...'`**
+    *   *Cause:* The package is not installed in the currently active virtual environment.
+    *   *Fix:* Make sure you ran `source .venv/bin/activate` and then `pip install -e .` in the root of the project.
+*   **`No module named 'crewai'`**
+    *   *Fix:* Force install CrewAI dependency manually by running `pip install crewai`.
+*   **Authentication Errors (401 or Invalid API Key)**
+    *   *Cause:* The environment variables are not correctly exported.
+    *   *Fix:* Export keys in the same terminal session you are running `crewctl` in, or verify they are loaded. Ensure you aren't enclosing values in spaces or unnecessary quotes.
+*   **`Tool not permitted`**
+    *   *Cause:* The agent is trying to execute a tool connector that is not permitted for its role in [rbac.yaml](file:///Users/anishtejwani/Desktop/projects/enterprise-agent/rbac.yaml).
+    *   *Fix:* Under the matching role in `rbac.yaml`, add the requested tool to the `allowed_tools` list (e.g., `- mytool.my_method`).
+*   **Vector DB / ChromaDB Errors on first Run**
+    *   *Cause:* The vector store hasn't been built yet.
+    *   *Fix:* Run `crewctl index` first to process and index documents defined in `memory.yaml`.
+
+---
+
 
 ## 🔌 Adding a Custom Connector (Tool)
 

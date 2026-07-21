@@ -2,6 +2,11 @@ import os
 import yaml
 from typing import Dict, List, Any, Optional
 from dataclasses import dataclass, field
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
 
 @dataclass
 class LLMCost:

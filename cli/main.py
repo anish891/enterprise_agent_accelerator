@@ -5,6 +5,12 @@ import threading
 import json
 import time
 from typing import Optional
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table

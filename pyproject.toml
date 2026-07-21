@@ -21,6 +21,7 @@ dependencies = [
     "click>=8.1",
     "rich>=13.0",
     "numpy>=1.26",
+    "python-dotenv>=1.0.0",
 ]
 
 [project.scripts]

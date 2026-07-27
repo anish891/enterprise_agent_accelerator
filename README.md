@@ -12,7 +12,8 @@ Understanding the landscape of AI frameworks helps identify where this orchestra
 | :--- | :--- | :--- |
 | **Configuration** | Code-first. Requires writing verbose Python files to declare agents, tasks, and crews. | **No-Code / Configuration-first**. Define your entire workforce in simple, readable YAML files (`agents.yaml`, `tasks.yaml`). |
 | **Security & Access Control** | None out of the box. Agents can call any Python functions or tools imported in scope. | **Enterprise Security**. Built-in Role-Based Access Control (`rbac.yaml`) restricting exactly which agents can run which tool/connector methods. |
-| **Monitoring & Audit Logs** | Basic terminal logs or Third-party integrations (e.g. Agentops). | **Full Observability**. CLI audit playback (`crewctl audit`), detailed run event tracking, and an out-of-the-box Web UI dashboard (`crewctl ui`). |
+| **Observability & Persistent History** | Basic terminal logs or third-party integrations (e.g. Agentops). | **Full Observability & Persistent History**. Embedded SQLite database (`history.db`), terminal TUI dashboard, CLI run history (`crewctl history`), report exporter (`crewctl report`), audit player (`crewctl audit`), and Web UI (`crewctl ui`). |
+| **Token & Cost Tracking** | Generic or non-existent token tallies. | **Accurate Model Accounting**. `tiktoken` encoding and model-specific pricing rates (`utils/cost.py`) for exact USD cost and token breakdown. |
 | **Data / RAG Ingestion** | Requires writing custom Python loaders and chunkers manually. | **Declarative Knowledge Base**. Configure local PDFs/Confluence in `memory.yaml` and index automatically using `crewctl index`. |
 | **Enterprise Connectors** | Must write manual code to integrate Jira, SAP, ServiceNow, Outlook, etc. | **Pre-built Connectors**. Standard suite of enterprise-grade integrations (Jira, SAP, ServiceNow, Outlook, SharePoint) usable via YAML. |
 
@@ -246,8 +247,10 @@ Here is a full breakdown of the `crewctl` CLI utilities at your disposal:
 | `crewctl run` | Executes the agent workforce declared in `agents.yaml` and `tasks.yaml`. | `crewctl run` |
 | `crewctl new` | Scaffolds fresh YAML configuration templates (`it-support`, `hr-onboarding`, `data-analysis`). | `crewctl new --template it-support` |
 | `crewctl index` | Indexes knowledge documents from `memory.yaml` into your vector store. | `crewctl index` |
-| `crewctl ui` | Launches a local Web UI dashboard to browse past runs, task status, execution logs, and token usage metrics. | `crewctl ui --port 8000` |
+| `crewctl history` | Displays persistent SQLite run history in a formatted terminal table. | `crewctl history` or `crewctl history --limit 10` |
+| `crewctl report` | Generates a structured Markdown execution report for a run ID. | `crewctl report <run_id>` or `crewctl report <run_id> --save` |
 | `crewctl audit` | Replays the execution events or logs of past runs/agent tool calls. | `crewctl audit --run-id <run_id>` or `crewctl audit --agent lead_researcher` |
+| `crewctl ui` | Launches a local Web UI dashboard to browse past runs, task status, execution logs, and token usage metrics. | `crewctl ui --port 8000` |
 | `crewctl watch` | Monitor an external execution script and stream its logs. | `crewctl watch "python my_crew.py"` |
 | `crewctl deploy` | Simulates a containerized Kubernetes deployment (Demo mode). | `crewctl deploy` |
 
@@ -264,13 +267,13 @@ enterprise-agent/
 ├── tasks.yaml           # Concrete tasks, expectations, and dependencies
 ├── memory.yaml          # RAG databases & files index definitions
 ├── rbac.yaml            # RBAC permissions per agent role
-├── cli/                 # The CLI module files powering crewctl commands
+├── cli/                 # The CLI module files powering crewctl commands (main.py, watch.py, index.py)
 ├── connectors/          # Pre-built enterprise connectors (Jira, SAP, Outlook, etc.)
 ├── memory/              # Vector database integrations and loaders
-├── monitoring/          # Run logger, audit player, and dashboard server
+├── monitoring/          # SQLite audit DB, tracer, report_generator, dashboard, and Web UI
 ├── runtime/             # Orchestrator core, LLM routing, and task graphs
 ├── security/            # Token enforcement and active RBAC validation
-└── utils/               # App configuration loaders and logging utilities
+└── utils/               # App configuration, logging utilities, and cost/pricing engine (cost.py)
 ```
 
 ---

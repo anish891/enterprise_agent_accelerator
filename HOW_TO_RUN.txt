@@ -86,6 +86,14 @@ QUICK START (5 steps)
       Launch a local web dashboard to browse past runs, task logs, and metrics.
       Open http://localhost:8000 in your browser.
 
+  crewctl history [--limit <N>]
+      Display persistent SQLite execution history table in terminal.
+      Shows Run ID, Crew Name, Status, Duration, Tokens, and Total Cost (USD).
+
+  crewctl report <run_id> [--save]
+      Generate and view a structured Markdown execution report for a run ID.
+      Use --save to write the report to .crewctl/reports/report_<run_id>.md.
+
   crewctl audit --run-id <id>
       Replay the full event log of a specific execution run.
 

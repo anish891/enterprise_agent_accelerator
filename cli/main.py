@@ -344,6 +344,61 @@ def audit(run_id: Optional[str], agent: Optional[str]) -> None:
             console.print(Panel(table, border_style="cyan"))
 
 @cli.command()
+@click.option("--limit", default=20, help="Maximum number of historical runs to display.")
+def history(limit: int) -> None:
+    """
+    Displays persistent SQLite execution history table in terminal.
+    """
+    from monitoring.audit import list_all_runs
+    console = Console()
+    runs = list_all_runs(limit=limit)
+    if not runs:
+        console.print("[yellow]No historical runs found in database.[/yellow]")
+        return
+        
+    table = Table(title="Persistent Agent Crew Run History", expand=True)
+    table.add_column("Run ID", style="yellow", width=12)
+    table.add_column("Crew Name", style="cyan")
+    table.add_column("Status", style="magenta", width=12)
+    table.add_column("Start Time", style="white")
+    table.add_column("Duration", style="green", width=10)
+    table.add_column("Total Tokens", style="cyan", width=14)
+    table.add_column("Total Cost (USD)", style="bold yellow", width=16)
+
+    for r in runs:
+        status_style = "[green]COMPLETED[/green]" if r.get("status") == "completed" else f"[red]{r.get('status', 'unknown').upper()}[/red]"
+        dur = f"{r.get('elapsed_seconds', 0.0):.1f}s"
+        cost = f"${r.get('total_cost_usd', 0.0):.5f}"
+        tokens = f"{r.get('total_tokens', 0):,}"
+        table.add_row(
+            r.get("run_id", "")[:10],
+            r.get("crew_name", "Agent Crew"),
+            status_style,
+            str(r.get("start_time", "")).split(".")[0],
+            dur,
+            tokens,
+            cost
+        )
+    console.print(table)
+
+@cli.command()
+@click.argument("run_id")
+@click.option("--save", is_flag=True, help="Save report as a markdown file to .crewctl/reports/")
+def report(run_id: str, save: bool) -> None:
+    """
+    Generates and outputs an execution summary report for a specific run ID.
+    """
+    from monitoring.report_generator import generate_markdown_report, save_report_to_disk
+    console = Console()
+    
+    if save:
+        path = save_report_to_disk(run_id)
+        console.print(f"[green]Successfully saved execution report to:[/green] [cyan]{path}[/cyan]")
+    else:
+        report_md = generate_markdown_report(run_id)
+        console.print(Panel(report_md, title=f"Execution Report — Run {run_id}", border_style="cyan"))
+
+@cli.command()
 def deploy() -> None:
     """
     Deploys the current crew setup to production environment container clusters (Simulated).

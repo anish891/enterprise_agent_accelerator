@@ -174,11 +174,19 @@ class CrewOrchestrator:
                         agent_role = getattr(f_self.agent, "role", "unknown")
                         break
 
-            # 3. Estimate cost metrics
-            chars = len(str(tool_input)) + len(str(tool_output_val))
-            tokens_in_est = len(str(tool_input)) // 4
-            tokens_out_est = len(str(tool_output_val)) // 4
-            cost = (tokens_in_est * 0.000003) + (tokens_out_est * 0.000015)
+            # 3. Accurate token & cost metrics calculation
+            from utils.cost import calculate_step_cost
+            try:
+                import tiktoken
+                enc = tiktoken.get_encoding("cl100k_base")
+                tokens_in_est = len(enc.encode(str(tool_input)))
+                tokens_out_est = len(enc.encode(str(tool_output_val)))
+            except Exception:
+                tokens_in_est = max(1, len(str(tool_input)) // 4)
+                tokens_out_est = max(1, len(str(tool_output_val)) // 4)
+
+            model_name = self.settings.default_llm if hasattr(self, "settings") and self.settings else "azure/gpt-4o"
+            cost = calculate_step_cost(tokens_in_est, tokens_out_est, model_name)
 
             event = StepEvent(
                 run_id=run_id,

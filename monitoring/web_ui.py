@@ -99,6 +99,23 @@ class DashboardHTTPHandler(http.server.BaseHTTPRequestHandler):
             self.wfile.write(b"Not Found")
 
     def get_runs_list(self) -> List[Dict[str, Any]]:
+        from monitoring.audit import list_all_runs
+        sqlite_runs = list_all_runs(limit=100)
+        if sqlite_runs:
+            result = []
+            for r in sqlite_runs:
+                result.append({
+                    "run_id": r.get("run_id"),
+                    "timestamp": r.get("start_time"),
+                    "crew_name": r.get("crew_name", "Agent Crew"),
+                    "status": r.get("status", "completed"),
+                    "steps_count": 0,
+                    "tokens_count": r.get("total_tokens", 0),
+                    "cost_usd": r.get("total_cost_usd", 0.0),
+                    "final_output": r.get("final_output")
+                })
+            return result
+            
         filepath = get_audit_file_path()
         if not os.path.exists(filepath):
             return []

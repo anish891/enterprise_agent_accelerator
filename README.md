@@ -152,24 +152,43 @@ Install all required libraries and dependencies:
 pip install -e .
 ```
 
-### Step 4: Configure API Credentials
-You need to provide your API keys to authorize agents to communicate with LLM providers. Run the command matching your provider in your terminal:
+### Step 4: Configure API Credentials & Environment
 
-*   **For OpenAI Models (e.g. GPT-4o):**
-    ```bash
-    export OPENAI_API_KEY="your-openai-api-key"
-    ```
-*   **For Anthropic Models (e.g. Claude 3.5 Sonnet):**
-    ```bash
-    export ANTHROPIC_API_KEY="your-anthropic-api-key"
-    ```
-*   **For Google Gemini Models:**
-    ```bash
-    export GEMINI_API_KEY="your-gemini-api-key"
-    ```
-*(On Windows Command Prompt, use `set` instead of `export`, for example: `set OPENAI_API_KEY="your-key"`).*
+#### 🚀 Minimum Setup (Quick Start)
+To run a basic agent workspace, you only need credentials for **one** LLM provider (e.g. Azure OpenAI, OpenAI direct, Anthropic, or Gemini). Infrastructure components (Redis, PostgreSQL) and connectors (Jira, SAP, web search) are optional and only needed when using those specific features.
+
+Copy the minimal template to `.env`:
+```bash
+cp .env.example.minimal .env
+```
+Then edit `.env` with your API key for your chosen provider:
+
+* **Azure OpenAI (Default in `config.yaml`):**
+  ```bash
+  AZURE_OPENAI_API_KEY="your-azure-openai-api-key"
+  AZURE_OPENAI_ENDPOINT="https://your-resource-name.cognitiveservices.azure.com"
+  ```
+* **OpenAI Direct:**
+  ```bash
+  export OPENAI_API_KEY="your-openai-api-key"
+  ```
+* **Anthropic Models:**
+  ```bash
+  export ANTHROPIC_API_KEY="your-anthropic-api-key"
+  ```
+* **Google Gemini Models:**
+  ```bash
+  export GEMINI_API_KEY="your-gemini-api-key"
+  ```
+
+#### ⚙️ Full Setup (Integrations & Infrastructure)
+If you are enabling optional features such as Redis caching, PostgreSQL persistence, external search tools, or enterprise connectors (Jira, SAP, ServiceNow, SharePoint, Outlook), use the full sample file:
+```bash
+cp .env.example.full .env
+```
 
 ---
+
 
 ### Step 5: Configure the Workforce (No-Code Configuration)
 

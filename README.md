@@ -11,9 +11,9 @@ Understanding the landscape of AI frameworks helps identify where this orchestra
 | Feature / Aspect | `crewai` (Vanilla) | `crewctl` (This Framework) |
 | :--- | :--- | :--- |
 | **Configuration** | Code-first. Requires writing verbose Python files to declare agents, tasks, and crews. | **No-Code / Configuration-first**. Define your entire workforce in simple, readable YAML files (`agents.yaml`, `tasks.yaml`). |
-| **Security & Access Control** | None out of the box. Agents can call any Python functions or tools imported in scope. | **Enterprise Security**. Built-in Role-Based Access Control (`rbac.yaml`) restricting exactly which agents can run which tool/connector methods. |
+| **Security & Access Control** | None out of the box. Agents can call any Python functions or tools imported in scope. | **Enterprise Security & Guardrails**. Built-in RBAC (`rbac.yaml`), Input PII Redaction, Prompt Injection defense, Human-in-the-Loop (HITL) tool approval, and Output Secret Masking (`security/guardrails.py`). |
 | **Observability & Persistent History** | Basic terminal logs or third-party integrations (e.g. Agentops). | **Full Observability & Persistent History**. Embedded SQLite database (`history.db`), terminal TUI dashboard, CLI run history (`crewctl history`), report exporter (`crewctl report`), audit player (`crewctl audit`), and Web UI (`crewctl ui`). |
-| **Token & Cost Tracking** | Generic or non-existent token tallies. | **Accurate Model Accounting**. `tiktoken` encoding and model-specific pricing rates (`utils/cost.py`) for exact USD cost and token breakdown. |
+| **Token Tracing & Accounting** | Generic or non-existent token tallies. | **Pure Input & Output Token Tracing**. `tiktoken` encoding for accurate input token (`tokens_in`) and output token (`tokens_out`) count tracking (`utils/cost.py`). |
 | **Data / RAG Ingestion** | Requires writing custom Python loaders and chunkers manually. | **Declarative Knowledge Base**. Configure local PDFs/Confluence in `memory.yaml` and index automatically using `crewctl index`. |
 | **Enterprise Connectors** | Must write manual code to integrate Jira, SAP, ServiceNow, Outlook, etc. | **Pre-built Connectors**. Standard suite of enterprise-grade integrations (Jira, SAP, ServiceNow, Outlook, SharePoint) usable via YAML. |
 
@@ -253,9 +253,38 @@ You can customize the `.yaml` files in the root folder using any text editor:
     ```bash
     crewctl run
     ```
-    *All agent thoughts, tool execution results, costs, and token tallies will stream directly to your terminal.*
+    *All agent thoughts, tool execution results, input/output token counts, and guardrail validations will stream directly to your terminal.*
 
 ---
+
+## 🛡️ Guardrails & Pure Token Tracing
+
+The framework enforces security policies across three execution layers via `security/guardrails.py` and `security/rbac.py`:
+
+```
+   ┌──────────────────────┐      ┌──────────────────────┐      ┌──────────────────────┐
+   │   Input Guardrails   │ ───► │  Runtime Guardrails  │ ───► │  Output Guardrails   │
+   │ PII Masking & Injection│     │ RBAC & HITL Approval │      │ Secret & Key Redaction│
+   └──────────────────────┘      └──────────────────────┘      └──────────────────────┘
+```
+
+1. **Input Guardrails (`validate_and_sanitize_input`)**:
+   - **PII Redaction**: Automatically anonymizes SSNs, credit cards, emails, and phone numbers in prompts (`[SSN_REDACTED]`, `[EMAIL_REDACTED]`).
+   - **Prompt Injection Defense**: Blocks system prompt overrides, instruction resets, and jailbreak attempts before reaching LLMs.
+
+2. **Runtime & Tool Guardrails (`enforce_tool_guardrail`)**:
+   - **Role-Based Access Control**: Enforces tool authorizations configured in `rbac.yaml`.
+   - **Human-in-the-Loop (HITL)**: Prompts for supervisor authorization before executing high-risk tools (e.g. `sap.release_payment`, `outlook.send_email`).
+
+3. **Output Guardrails (`sanitize_output`)**:
+   - **Secret Masking**: Redacts API keys, Bearer tokens, private keys, and database connection strings from final responses.
+
+4. **Pure Input & Output Token Tracing (`count_tokens`)**:
+   - Accurately counts input tokens (`tokens_in`) and output tokens (`tokens_out`) using `tiktoken` (cl100k_base).
+   - Tracks model token usage across all steps without monetary cost calculation overhead.
+
+---
+
 
 ## 💻 CLI Commands Reference
 
@@ -291,8 +320,9 @@ enterprise-agent/
 ├── memory/              # Vector database integrations and loaders
 ├── monitoring/          # SQLite audit DB, tracer, report_generator, dashboard, and Web UI
 ├── runtime/             # Orchestrator core, LLM routing, and task graphs
-├── security/            # Token enforcement and active RBAC validation
-└── utils/               # App configuration, logging utilities, and cost/pricing engine (cost.py)
+├── security/            # Security guardrails (guardrails.py), PII redaction, prompt injection defense, and active RBAC (rbac.py)
+└── utils/               # App configuration, logging utilities, and token counting engine (cost.py)
+
 ```
 
 ---

@@ -13,8 +13,9 @@ from runtime.task_graph import resolve_execution_batches
 from memory.knowledge import KnowledgeMemory
 from monitoring.tracer import StepEvent, publish_step_event
 from dataclasses import dataclass, asdict, field
-from utils.config import load_settings
-from utils.logger import get_logger
+from security.rbac import check_permission
+from security.guardrails import validate_and_sanitize_input, enforce_tool_guardrail, sanitize_output
+from utils.cost import count_tokens, calculate_step_cost
 
 # Import Connectors mapping
 from connectors.jira import JiraConnector
@@ -329,8 +330,13 @@ class CrewOrchestrator:
                         except KeyError:
                             pass  # placeholders referencing not-yet-run tasks — leave as-is
 
+                        # Apply Input Guardrails (Injection check & PII redaction)
+                        is_safe, sanitized_desc, warning_msg = validate_and_sanitize_input(description_str)
+                        if not is_safe:
+                            raise ValueError(f"Task '{task_key}' blocked by Input Guardrail: {warning_msg}")
+
                         task_obj = Task(
-                            description=description_str,
+                            description=sanitized_desc,
                             expected_output=t_info.get("expected_output", "Success"),
                             agent=fresh_agent,
                         )
@@ -370,9 +376,14 @@ class CrewOrchestrator:
                     agent_obj = agent_instances.get(agent_key)
                     if not agent_obj:
                         raise ValueError(f"Agent '{agent_key}' declared in task '{t_key}' does not exist.")
-                        
+                    
+                    raw_desc = t_info.get("description", "")
+                    is_safe, sanitized_desc, warning_msg = validate_and_sanitize_input(raw_desc)
+                    if not is_safe:
+                        raise ValueError(f"Task '{t_key}' blocked by Input Guardrail: {warning_msg}")
+
                     task_obj = Task(
-                        description=t_info.get("description", ""),
+                        description=sanitized_desc,
                         expected_output=t_info.get("expected_output", "Output description"),
                         agent=agent_obj
                     )
@@ -403,10 +414,13 @@ class CrewOrchestrator:
             final_output_str = f"Execution Failure: {str(e)}"
             run_status = "failed"
 
-        # Calculate final totals
+        # Apply Output Guardrails (Secret & PII Redaction)
+        final_output_str = sanitize_output(final_output_str)
+
+        # Calculate final totals (Input and Output tokens)
         elapsed_sec = time.time() - start_time
         total_tokens = sum(e.tokens_in + e.tokens_out for e in self.captured_steps)
-        total_cost = sum(e.cost_usd for e in self.captured_steps)
+        total_cost = 0.0
         
         # Broadcast completed/failed event
         end_event = StepEvent(
@@ -417,8 +431,8 @@ class CrewOrchestrator:
             tool_called="None",
             tool_input={},
             tool_output=final_output_str,
-            tokens_in=0,
-            tokens_out=0,
+            tokens_in=sum(e.tokens_in for e in self.captured_steps),
+            tokens_out=sum(e.tokens_out for e in self.captured_steps),
             cost_usd=total_cost,
             latency_ms=int(elapsed_sec * 1000),
             status=run_status
@@ -437,3 +451,4 @@ class CrewOrchestrator:
             status=run_status
         )
         return result
+

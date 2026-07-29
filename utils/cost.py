@@ -59,11 +59,22 @@ def get_model_rates(model_name: Optional[str]) -> Tuple[float, float]:
             
     return MODEL_PRICING["default"]
 
+def count_tokens(text: str) -> int:
+    """
+    Calculates the exact or estimated token count for a text string using tiktoken (or fallback).
+    """
+    if not text:
+        return 0
+    try:
+        import tiktoken
+        enc = tiktoken.get_encoding("cl100k_base")
+        return len(enc.encode(str(text)))
+    except Exception:
+        return max(1, len(str(text)) // 4)
+
 def calculate_step_cost(tokens_in: int, tokens_out: int, model_name: Optional[str] = None) -> float:
     """
-    Calculates USD cost for prompt and completion tokens.
+    Returns 0.0 as cost calculation is disabled in favor of pure input/output token count tracing.
     """
-    rate_in, rate_out = get_model_rates(model_name)
-    cost_in = (tokens_in / 1000.0) * rate_in
-    cost_out = (tokens_out / 1000.0) * rate_out
-    return round(cost_in + cost_out, 6)
+    return 0.0
+
